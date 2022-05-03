@@ -1,0 +1,153 @@
+---
+title: "final project"
+author: "Siyan Pu"
+date: "5/2/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(lfe)
+```
+
+```{r}
+data <- readRDS("TaxBurden_Data.rds")
+data %>%
+  group_by(Year) %>%
+  summarise(avg_sales=mean(sales_per_capita, na.rm=TRUE)) %>%
+  ggplot(aes(Year, avg_sales))+geom_line()+
+  labs(x="Year", y="Average Sales", title = "Average Sales Per Capita By Year")+theme_bw()
+
+state_data <- data %>%
+  group_by(state) %>%
+  summarise(avg_sales=mean(sales_per_capita, na.rm=TRUE))
+write.csv(state_data, "state_data.csv")
+
+```
+
+```{r}
+smokefree_indoor <- read.csv("smokefree_indoor.csv") %>%
+  rename(state=LocationDesc)
+smokefree_indoor <- smokefree_indoor %>%
+  filter(Year >= 2019 & duplicated(state)==FALSE) %>%
+  select(state, Effective_Date) %>%
+  mutate(effective_year = year(as.POSIXct(Effective_Date, format="%m/%d/%Y")))
+indoor_combined <- merge(data %>% select(Year, state, sales_per_capita), smokefree_indoor %>% select(state, effective_year), by="state") %>%
+  mutate(effective=!is.na(effective_year)) 
+indoor_combined %>%
+  group_by(Year, effective) %>%
+  summarise(avg_sales=mean(sales_per_capita, na.rm=TRUE)) %>%
+  ggplot(aes(Year, avg_sales, color=effective))+geom_line()+
+  labs(x="Year", y="Average Sales", title="Average Sales Per Year W/ Smokefree Indoor Act")+theme_bw()
+```
+```{r}
+indoor_combined %>%
+  filter(duplicated(state)==FALSE) %>%
+  group_by(effective_year) %>%
+  summarise(count=n())
+indoor.dat.2006 <- indoor_combined %>%
+  mutate(post = (Year >= 2006), treat=post*effective) %>%
+  filter(effective_year==2006 | is.na(effective_year))
+indoor.reg.2006 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=indoor.dat.2006)
+summary(indoor.reg.2006)
+indoor.dat.2008 <- indoor_combined %>%
+  mutate(post = (Year >= 2008), treat=post*effective) %>%
+  filter(effective_year==2008 | is.na(effective_year))
+indoor.reg.2008 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=indoor.dat.2008)
+summary(indoor.reg.2008)
+indoor.dat.2016 <- indoor_combined %>%
+  mutate(post = (Year >= 2016), treat=post*effective) %>%
+  filter(effective_year==2016 | is.na(effective_year))
+indoor.reg.2016 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=indoor.dat.2016)
+summary(indoor.reg.2016)
+indoor.dat <- indoor_combined %>%
+  mutate(post = (Year >= effective_year), treat=post*effective)
+indoor.reg <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=indoor.dat)
+summary(indoor.reg)
+```
+
+```{r}
+smokefree_campus <- read.csv("smokefree_campus.csv") %>%
+  rename(state=LocationDesc)
+smokefree_campus <- smokefree_campus %>%
+  filter(Year >= 2019 & duplicated(state)==FALSE) %>%
+  select(state, Effective_Date) %>%
+  mutate(effective_year = year(as.POSIXct(Effective_Date, format="%m/%d/%Y")))
+campus_combined <- merge(data %>% select(Year, state, sales_per_capita), smokefree_campus %>% select(state, effective_year), by="state") %>%
+  mutate(effective=!is.na(effective_year)) 
+campus_combined %>%
+  group_by(Year, effective) %>%
+  summarise(avg_sales=mean(sales_per_capita, na.rm=TRUE)) %>%
+  ggplot(aes(Year, avg_sales, color=effective))+geom_line()+
+  labs(x="Year", y="Average Sales", title="Average Sales Per Year W/ Smokefree Campus Act")+theme_bw()
+```
+```{r}
+campus_combined %>%
+  filter(duplicated(state)==FALSE) %>%
+  group_by(effective_year) %>%
+  summarise(count=n())
+campus.dat.2006 <- campus_combined %>%
+  mutate(post = (Year >= 2006), treat=post*effective) %>%
+  filter(effective_year==2006 | is.na(effective_year))
+campus.reg.2006 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=campus.dat.2006)
+summary(campus.reg.2006)
+campus.dat.2004 <- campus_combined %>%
+  mutate(post = (Year >= 2004), treat=post*effective) %>%
+  filter(effective_year==2004 | is.na(effective_year))
+campus.reg.2004 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=campus.dat.2004)
+summary(campus.reg.2004)
+campus.dat.2009 <- campus_combined %>%
+  mutate(post = (Year >= 2009), treat=post*effective) %>%
+  filter(effective_year==2009 | is.na(effective_year))
+campus.reg.2009 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=campus.dat.2009)
+summary(campus.reg.2009)
+campus.dat <- campus_combined %>%
+  mutate(post = (Year >= effective_year), treat=post*effective)
+campus.reg <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=campus.dat)
+summary(campus.reg)
+```
+
+```{r}
+ecigarette <- read.csv("ecigarette.csv") %>%
+  rename(state=LocationDesc, Year = YEAR)
+ecigarette <- ecigarette %>%
+  filter(Year >= 2019 & duplicated(state)==FALSE) %>%
+  select(state, Effective_Date) %>%
+  mutate(effective_year = year(as.POSIXct(Effective_Date, format="%m/%d/%Y")))
+ecigarette_combined <- merge(data %>% select(Year, state, sales_per_capita), ecigarette %>% select(state, effective_year), by="state") %>%
+  mutate(effective=!is.na(effective_year)) 
+ecigarette_combined %>%
+  group_by(Year, effective) %>%
+  summarise(avg_sales=mean(sales_per_capita, na.rm=TRUE)) %>%
+  ggplot(aes(Year, avg_sales, color=effective))+geom_line()+
+  labs(x="Year", y="Average Sales", title="Average Sales Per Year W/ E-cigarette Youth Access")+theme_bw()
+```
+
+```{r}
+ecigarette_combined %>%
+  filter(duplicated(state)==FALSE) %>%
+  group_by(effective_year) %>%
+  summarise(count=n())
+ecigarette.dat.2013 <- ecigarette_combined %>%
+  mutate(post = (Year >= 2013), treat=post*effective) %>%
+  filter(effective_year==2013 | is.na(effective_year))
+ecigarette.reg.2013 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=ecigarette.dat.2013)
+summary(ecigarette.reg.2013)
+ecigarette.dat.2014 <- ecigarette_combined %>%
+  mutate(post = (Year >= 2014), treat=post*effective) %>%
+  filter(effective_year==2014 | is.na(effective_year))
+ecigarette.reg.2014 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=ecigarette.dat.2014)
+summary(ecigarette.reg.2014)
+ecigarette.dat.2015 <- ecigarette_combined %>%
+  mutate(post = (Year >= 2015), treat=post*effective) %>%
+  filter(effective_year==2015 | is.na(effective_year))
+ecigarette.reg.2015 <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=ecigarette.dat.2015)
+summary(ecigarette.reg.2015)
+ecigarette.dat <- ecigarette_combined %>%
+  mutate(post = (Year >= effective_year), treat=post*effective)
+ecigarette.reg <- felm(sales_per_capita ~ treat | factor(state) + factor(Year), data=ecigarette.dat)
+summary(ecigarette.reg)
+```
